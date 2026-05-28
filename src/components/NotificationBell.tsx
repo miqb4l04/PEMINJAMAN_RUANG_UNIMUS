@@ -1,138 +1,161 @@
+// src/components/NotificationBell.tsx
 import React, { useState, useEffect, useRef } from 'react';
+import { Bell, Check, CheckCircle2, Info, XCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { apiRequest } from '../services/api';
-import { Notification } from '../types';
-import { Bell, Check, Info } from 'lucide-react';
+
+// Definisi tipe data notifikasi
+interface Notification {
+  id: number;
+  pesan: string;
+  dibaca: boolean;
+  createdAt: string;
+}
 
 export default function NotificationBell() {
-  const [notifs, setNotifs] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const fetchNotifs = async () => {
+  // Mengambil notifikasi dari backend
+  const fetchNotifications = async () => {
     try {
-      const data = await apiRequest<Notification[]>('/notifications');
-      setNotifs(data);
-    } catch (err) {
-      console.error('Failed to load notifications', err);
+      // PERBAIKAN 1: Menambahkan '/api' di depan path URL
+      const data = await apiRequest<Notification[]>('/api/notifications');
+      
+      // PERBAIKAN 2: Memastikan data yang diterima benar-benar array sebelum dimasukkan
+      if (Array.isArray(data)) {
+        setNotifications(data);
+      } else {
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil notifikasi:", error);
     }
   };
 
   useEffect(() => {
-    fetchNotifs();
-    // Poll notifications every 8 seconds for a lively fast update feel
-    const interval = setInterval(fetchNotifs, 8000);
+    fetchNotifications();
+    // Refresh otomatis setiap 30 detik
+    const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Menutup dropdown kalau user klik di luar area
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = notifs.filter(n => !n.isRead).length;
+  // Hitung yang belum dibaca
+  const unreadCount = notifications.filter(n => !n.dibaca).length;
 
-  const handleMarkAsRead = async (id: number) => {
+  // Fungsi tandai satu pesan sudah dibaca
+  const markAsRead = async (id: number) => {
     try {
-      await apiRequest(`/notifications/${id}/read`, { method: 'PATCH' });
-      setNotifs(prev =>
-        prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
-      );
-    } catch (err) {
-      console.error(err);
+      // PERBAIKAN 3: Menambahkan '/api' di depan path URL
+      await apiRequest(`/api/notifications/${id}/read`, { method: 'PUT' });
+      setNotifications(notifications.map(n => n.id === id ? { ...n, dibaca: true } : n));
+    } catch (error) { 
+      console.error("Gagal menandai dibaca:", error); 
     }
   };
 
-  const handleMarkAllAsRead = async () => {
-    const unread = notifs.filter(n => !n.isRead);
-    for (const n of unread) {
-      await handleMarkAsRead(n.id);
+  // Fungsi tandai semua sudah dibaca
+  const markAllAsRead = async () => {
+    try {
+      // PERBAIKAN 4: Menambahkan '/api' di depan path URL
+      await apiRequest(`/api/notifications/read-all`, { method: 'PUT' });
+      setNotifications(notifications.map(n => ({ ...n, dibaca: true })));
+    } catch (error) { 
+      console.error("Gagal menandai semua dibaca:", error); 
     }
+  };
+
+  // Tentukan warna ikon berdasarkan isi pesan
+  const getIcon = (pesan: string) => {
+    const pesanUpper = pesan.toUpperCase();
+    if (pesanUpper.includes('DISETUJUI') || pesanUpper.includes('SELAMAT')) return <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-1 flex-shrink-0" />;
+    if (pesanUpper.includes('DITOLAK')) return <XCircle className="w-5 h-5 text-rose-500 mt-1 flex-shrink-0" />;
+    return <Info className="w-5 h-5 text-indigo-500 mt-1 flex-shrink-0" />;
   };
 
   return (
-    <div className="relative inline-block" ref={containerRef} id="notif-wrapper">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors bg-gray-100 hover:bg-blue-50 rounded-full"
-        id="btn-notif-bell"
+    <div className="relative" ref={dropdownRef}>
+      {/* TOMBOL LONCENG */}
+      <button 
+        onClick={() => { setIsOpen(!isOpen); if(!isOpen) fetchNotifications(); }}
+        className="relative p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-200 focus:outline-none"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
-            {unreadCount}
+          <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden" id="notif-popup">
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-gray-100">
-            <span className="font-semibold text-gray-800 text-sm">Notifikasi</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
-              >
-                Tandai semua dibaca
-              </button>
-            )}
-          </div>
-
-          <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
-            {notifs.length === 0 ? (
-              <div className="p-6 text-center text-gray-500 text-sm">
-                Tidak ada notifikasi untuk Anda.
-              </div>
-            ) : (
-              notifs.map(n => (
-                <div
-                  key={n.id}
-                  className={`p-3.5 transition-colors ${
-                    !n.isRead ? 'bg-blue-50/70 hover:bg-blue-50' : 'bg-white hover:bg-slate-50'
-                  }`}
+      {/* KOTAK DROPDOWN NOTIFIKASI */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50"
+          >
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-indigo-500" /> Notifikasi
+              </h3>
+              {unreadCount > 0 && (
+                <button 
+                  onClick={markAllAsRead}
+                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
                 >
-                  <div className="flex gap-2.5 items-start">
-                    <div className="mt-0.5">
-                      <span className={`block p-1 rounded-full ${!n.isRead ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                        <Info className="w-3.5 h-3.5" />
-                      </span>
-                    </div>
-                    <div className="flex-grow">
-                      <p className="text-gray-700 text-xs leading-relaxed font-medium">
-                        {n.message}
-                      </p>
-                      <div className="flex justify-between items-center mt-1.5">
-                        <span className="text-[10px] text-gray-400 font-mono">
-                          {new Date(n.createdAt).toLocaleTimeString('id-ID', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          }) + ' | ' + new Date(n.createdAt).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </span>
-                        {!n.isRead && (
-                          <button
-                            onClick={() => handleMarkAsRead(n.id)}
-                            className="text-[10px] text-emerald-600 font-semibold hover:underline flex items-center gap-0.5"
-                          >
-                            <Check className="w-3 h-3" /> Bacakan
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <Check className="w-3 h-3" /> Tandai Semua Dibaca
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-96 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-semibold">Belum ada notifikasi</p>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {notifications.map(notif => (
+                    <div 
+                      key={notif.id} 
+                      onClick={() => !notif.dibaca && markAsRead(notif.id)}
+                      className={`p-4 flex gap-3 transition-colors ${notif.dibaca ? 'opacity-60 cursor-default' : 'bg-indigo-50/30 hover:bg-slate-50 cursor-pointer'}`}
+                    >
+                      {getIcon(notif.pesan)}
+                      <div className="space-y-1">
+                        <p className={`text-xs leading-relaxed ${notif.dibaca ? 'text-slate-600' : 'text-slate-800 font-bold'}`}>
+                          {notif.pesan}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-mono">
+                          {new Date(notif.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                      {!notif.dibaca && <div className="w-2 h-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

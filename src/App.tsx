@@ -79,22 +79,26 @@ function AppContent() {
           )}
         </div>
 
-        {/* User Card */}
-        <div className={`p-4 border-b border-slate-100 bg-[#f8fafc]/50 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
-          <div className="p-1.5 bg-indigo-50 rounded-xl text-indigo-600 shrink-0">
-            <UserCircle2 className="w-7 h-7" />
-          </div>
-          {!isSidebarCollapsed && (
-            <div className="overflow-hidden animate-fade-in">
-              <span className="block font-bold text-xs truncate text-slate-800 leading-tight">
-                {user.name}
-              </span>
-              <span className="block text-[8px] text-slate-500 truncate mt-0.5 uppercase tracking-wider font-extrabold font-sans">
-                {user.role === 'GUEST' ? 'Sesi Tamu' : `${user.role.replace('_', ' ')}`}
-              </span>
+{/* User Card (DI SINI LONCENGNYA) */}
+        <div className={`p-4 border-b border-slate-100 bg-[#f8fafc]/50 flex items-center justify-between`}>
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="p-1.5 bg-indigo-50 rounded-xl text-indigo-600 shrink-0">
+              <UserCircle2 className="w-7 h-7" />
             </div>
-          )}
+            {!isSidebarCollapsed && (
+              <div className="overflow-hidden animate-fade-in">
+                <span className="block font-bold text-xs truncate text-slate-800 leading-tight">{user.name}</span>
+                <span className="block text-[8px] text-slate-500 truncate mt-0.5 uppercase tracking-wider font-extrabold font-sans">
+                  {user.role === 'GUEST' ? 'Sesi Tamu' : `${user.role.replace('_', ' ')}`}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0">
+             <NotificationBell />
+          </div>
         </div>
+
 
         {/* Sidebar Nav links */}
         <nav className="flex-1 p-3 space-y-1.5" id="sidebar-nav">
