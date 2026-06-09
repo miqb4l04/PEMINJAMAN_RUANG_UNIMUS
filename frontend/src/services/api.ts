@@ -1,5 +1,7 @@
 // frontend/src/services/api.ts
-const BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+
+// 🚀 MENGGUNAKAN SERVER RENDER (PRODUCTION) SEBAGAI DEFAULT
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://siprus-api.onrender.com/api';
 
 const getCleanToken = (): string | null => {
   const token = localStorage.getItem('token');
@@ -32,7 +34,7 @@ const prepareBody = (body: any) => {
 
 const handleResponse = async (response: Response, endpoint: string) => {
   if (response.status === 401) {
-    console.warn("API: Sesi tidak sah atau kadaluarsa (401).");
+    console.warn("API: Sesi tidak sah atau kadaluarsa (401). Silakan login ulang.");
   }
 
   const text = await response.text();
